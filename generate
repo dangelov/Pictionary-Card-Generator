@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+# coding=utf-8
+from PIL import Image
+from PIL import ImageFont
+from PIL import ImageDraw
+import random, sys
+
+def pickWord(wordType):
+	if (wordType == "Person"):
+		randomIndex = random.randint(0, len(personWords) - 1)
+		pickedWord = personWords[randomIndex]
+		personWords.remove(pickedWord)
+		return pickedWord
+	if (wordType == "Object"):
+		randomIndex = random.randint(0, len(objectWords) - 1)
+		pickedWord = objectWords[randomIndex]
+		objectWords.remove(pickedWord)
+		return pickedWord
+	if (wordType == "Action/Verb"):
+		randomIndex = random.randint(0, len(verbWords) - 1)
+		pickedWord = verbWords[randomIndex]
+		verbWords.remove(pickedWord)
+		return pickedWord
+	if (wordType == "Difficult"):
+		randomIndex = random.randint(0, len(hardWords) - 1)
+		pickedWord = hardWords[randomIndex]
+		hardWords.remove(pickedWord)
+		return pickedWord
+	if (wordType == "All play"):
+		randomIndex = random.randint(0, len(mediumWords) - 1)
+		pickedWord = mediumWords[randomIndex]
+		mediumWords.remove(pickedWord)
+		return pickedWord
+	return ""
+
+# App variables
+appVersion = "0.1"
+
+# Setup control variables
+paperWidth = 2480
+paperHeight = 3508
+cardWidth = 620
+cardHeight = 870
+cardOutlineColor = (0, 0, 0)
+cardOutlineWidth = 8
+entryHeight = 174
+entryTitleTopOffset = 30
+entryWordTopOffset = 80
+entryContentLeftOffset = 40
+numCards = 100
+
+# Setup progress bar
+sys.stdout.write("Pictionary Generator v{}\n".format(appVersion))
+sys.stdout.write("[%s]" % (" " * numCards))
+sys.stdout.flush()
+sys.stdout.write("\b" * (numCards+1)) # return to start of line, after '['
+
+# Load word lists
+hardWords = [line.strip() for line in open('word-lists/hard.txt')]
+mediumWords = [line.strip() for line in open('word-lists/medium.txt')]
+# easyWords = [line.strip() for line in open('word-lists/easy.txt')]
+objectWords = [line.strip() for line in open('word-lists/objects.txt')]
+personWords = [line.strip() for line in open('word-lists/persons.txt')]
+verbWords = [line.strip() for line in open('word-lists/verbs.txt')]
+
+# Prepare the font
+titleFont = ImageFont.truetype("resources/HansKendrick-Regular.ttf", 38)
+wordFont = ImageFont.truetype("resources/HansKendrick-Regular.ttf", 62)
+
+# Prepare entry colors and titles
+entryBackgroundColors = ((255, 255, 0), (186, 224, 255), (255, 198, 117), (125, 255, 140), (255, 132, 131))
+entryTitles = ("Person", "Object", "Action/Verb", "Difficult", "All play")
+
+# Prepare the sheet
+paperSheet = Image.new("RGBA", (paperWidth, paperHeight), (255, 255, 255))
+paperSheetDraw = ImageDraw.Draw(paperSheet)
+
+# Generate the amount of cards we want
+currentRow = 0
+currentColumn = 0
+sheetNum = 0
+for i in range(0, numCards):
+	# Indicate current position in progress bar
+	sys.stdout.write("•")
+	sys.stdout.write("\b")
+	sys.stdout.flush()
+	# Prepare the image
+	img = Image.new("RGBA", (cardWidth, cardHeight), (255, 255, 255))
+	draw = ImageDraw.Draw(img)
+	# Draw the rectangles and entries
+	for x in range(0, 5):
+		# Draw the background color for this entry
+		draw.rectangle([0, x * entryHeight, cardWidth, entryHeight * (x + 1)], fill=entryBackgroundColors[x])
+		# Add the text for the title for this entry
+		draw.text((entryContentLeftOffset, x * entryHeight + entryTitleTopOffset), entryTitles[x], (0, 0, 0), font=titleFont)
+		# Add the text for the actual picked words
+		draw.text((entryContentLeftOffset, x * entryHeight + entryWordTopOffset), pickWord(entryTitles[x]), (0, 0, 0), font=wordFont)
+		# Add a border for easy cuttin - using lines because .rectangle doesn't support line widths
+		draw.line([0, 0, cardWidth, 0], cardOutlineColor, cardOutlineWidth)
+		draw.line([cardWidth - (cardOutlineWidth / 4), 0, cardWidth - (cardOutlineWidth / 4), cardHeight], cardOutlineColor, cardOutlineWidth)
+		draw.line([0, cardHeight - (cardOutlineWidth / 4), cardWidth, cardHeight - (cardOutlineWidth / 4)], cardOutlineColor, cardOutlineWidth)
+		draw.line([0, 0, 0, cardHeight], cardOutlineColor, cardOutlineWidth)
+
+	if ((currentColumn + 1) * cardWidth > paperWidth):
+		currentRow += 1
+		currentColumn = 0
+
+	if ((currentRow + 1) * cardHeight > paperHeight):
+		currentRow = 0
+		currentColumn = 0
+		sheetNum += 1
+
+		paperSheet.save('sheet-{}.png'.format(sheetNum))
+		paperSheet = Image.new("RGBA", (paperWidth, paperHeight), (255, 255, 255))
+		paperSheetDraw = ImageDraw.Draw(paperSheet)
+
+	paperSheet.paste(img, (currentColumn * cardWidth, currentRow * cardHeight))
+
+	currentColumn += 1
+
+	# Update the progress bar
+	sys.stdout.write("#")
+	sys.stdout.flush()
+
+sheetNum += 1
+paperSheet.save('sheet-{}.png'.format(sheetNum))
+
+sys.stdout.write("\n")
